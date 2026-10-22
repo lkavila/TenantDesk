@@ -276,3 +276,30 @@ github.com/lkavila/TenantDesk        -> 200
 api.github.com/repos/lkavila/...     -> 200
 commit 1c826e6                       -> 200
 ```
+
+---
+
+## 6. Login verified on the live deployment
+
+All three seeded accounts, against the real sign-in endpoint:
+
+```
+  alice@acme.test      login -> 200
+  bob@globex.test      login -> 200
+  vera@acme.test       login -> 200
+```
+
+Rate limiting is active by default. Five rapid attempts produced:
+
+```
+  status -> 429
+{"message":"Too many requests. Please try again later."}
+```
+
+This corrected a wrong claim in an earlier draft of the README, which said
+there was no rate limiting on sign-in. There is; it is Better Auth's default
+and was never configured or measured here. Because the limiter engaged, the
+wrong-password and unknown-email responses could not be compared side by side
+over HTTP in this run — the generic "Those credentials did not work." message
+is enforced in `src/app/login/page.tsx`, which treats every `signIn.email`
+error identically rather than branching on the reason.

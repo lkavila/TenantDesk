@@ -168,9 +168,13 @@ Documented honestly rather than hidden.
 - **`ssl: { rejectUnauthorized: false }`** for non-localhost connections, which
   is the common Neon/Vercel setup but is not certificate pinning. Production
   should pin the CA.
-- **No rate limiting** on the sign-in route. Better Auth's generic
-  "credentials did not work" response avoids account enumeration, but nothing
-  slows down brute force.
+- **Rate limiting is Better Auth's default, not something tuned here.** Five
+  rapid sign-in attempts against the deployed app returned
+  `429 {"message":"Too many requests. Please try again later."}`, so brute
+  force is slowed out of the box — but the window and threshold were never
+  configured or measured. Account enumeration is separately avoided: the login
+  form shows one generic "Those credentials did not work." for both a wrong
+  password and an unknown email.
 - **Tests share one database with the dev seed** and clean up after themselves
   rather than running in a disposable schema. A failed run can leave a stray
   row; re-running `npm run db:seed` resets it.

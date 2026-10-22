@@ -11,6 +11,7 @@ PostgreSQL (Neon, pooled) · Better Auth · Vitest.
 - **Code commit:** `1c826e6`
 - **Evidence (commands + results):** [`EVIDENCE.md`](./EVIDENCE.md)
 - **AI collaboration log:** [`AI_LOG.md`](./AI_LOG.md)
+- **Limitations + next steps:** [`NEXT_STEPS.md`](./NEXT_STEPS.md)
 
 ---
 

@@ -239,10 +239,11 @@ in the server action path, and the test suite proves a replayed write returns
    directly. Removing the Suspense boundary would give a true 404 status at
    the cost of the streaming pending state.
 
-2. **Env vars were passed per-deployment** (`--env`/`--build-env`) rather than
-   saved to the Vercel project. A redeploy without those flags will fail at
-   runtime on a missing `DATABASE_URL`. Saving them properly:
-   `vercel env add DATABASE_URL production`.
+2. ~~Env vars were passed per-deployment.~~ **Resolved.** They are saved on
+   the Vercel project (`vercel env ls` lists `DATABASE_URL`,
+   `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `SEED_PASSWORD` for Production),
+   and the final deploy was run with **no** `--env` flags to prove it. One of
+   them was wrong, which is covered in section 7.
 
 3. **The preview and local tests share one Neon database.** Tests clean up
    after themselves, but a failed run can leave a stray row; `npm run db:seed`
@@ -303,3 +304,80 @@ wrong-password and unknown-email responses could not be compared side by side
 over HTTP in this run — the generic "Those credentials did not work." message
 is enforced in `src/app/login/page.tsx`, which treats every `signIn.email`
 error identically rather than branching on the reason.
+
+---
+
+## 7. A real bug, found only by using a browser
+
+Everything in sections 1-6 was green, and the app was still **broken for every
+real user**. This is the most important entry in this file.
+
+### What happened
+
+All earlier HTTP checks used `curl`. curl sends no `Origin` header, so Better
+Auth's `trustedOrigins` check never ran. Driving the deployed app in an actual
+browser produced:
+
+```
+POST https://tenantdesk-eight.vercel.app/api/auth/sign-in/email -> 403
+{"message":"Invalid origin","code":"INVALID_ORIGIN"}
+```
+
+The UI showed only "Those credentials did not work.", because the login form
+deliberately renders one generic message for every sign-in error. That
+anti-enumeration choice hid the real cause from the user — a correct security
+decision with a debugging cost worth knowing about.
+
+### Root cause
+
+Vercel exposes two different hostnames:
+
+| Variable | Value | Who sees it |
+|---|---|---|
+| `VERCEL_URL` | `tenantdesk-ato8td1x0-….vercel.app` | per deployment |
+| `VERCEL_PROJECT_PRODUCTION_URL` | `tenantdesk-eight.vercel.app` | the stable alias users visit |
+
+`baseUrl()` fell back to `VERCEL_URL`, so `trustedOrigins` allowed the
+deployment host while every browser arrived on the alias. Origin mismatch, 403.
+
+A second landmine sat next to it: `BETTER_AUTH_URL` was stored on the Vercel
+project as `http://localhost:3000`, and the code prefers it over everything
+else. The running deployment predated that variable, so it had not bitten yet —
+the next redeploy would have pointed production's auth at localhost.
+
+### Fix
+
+- `baseUrl()` now prefers `VERCEL_PROJECT_PRODUCTION_URL` over `VERCEL_URL`.
+- `trustedOrigins()` returns every host the app can legitimately be reached on
+  (alias, deployment URL, and localhost only when not on Vercel) instead of a
+  single value.
+- `BETTER_AUTH_URL` on Vercel Production corrected to
+  `https://tenantdesk-eight.vercel.app`.
+
+### Verified in a real browser after the fix
+
+```
+sign in as alice@acme.test  -> lands on /, "Signed in as alice@acme.test"
+                               YOUR ORGANIZATIONS: Acme Corp /acme [ADMIN]
+                               Globex is absent from the list
+GET /t/globex  as alice      -> "Not found — This organization or project does
+                                not exist, or you are not a member of it."
+GET /t/acme    as alice      -> Acme Onboarding, Rename button, create form
+create "Browser Verified Project" -> "Project created.", appears newest-first
+sign out, sign in as vera@acme.test
+GET /t/acme    as vera       -> badge "viewer"
+                                both projects readable
+                                NO Rename buttons, NO create form
+                                read-only notice rendered
+```
+
+The test project was removed afterwards by re-running `npm run db:seed`, so the
+database the reviewer sees holds exactly the seeded rows.
+
+### The lesson, stated plainly
+
+`curl` is not a browser. A 200 from curl on an auth endpoint proves the
+credentials are right and proves nothing about origin, CORS, cookie attributes
+or redirects. Every one of my green HTTP checks in section 5 was real but
+incomplete, and I reported them before this gap was closed. Browser
+verification should have come first, not last.

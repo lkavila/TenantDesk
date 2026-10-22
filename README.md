@@ -3,8 +3,14 @@
 A tiny multi-tenant project tracker. Two organizations, three users, role-based
 writes, audited and atomic.
 
-Stack: Next.js 15 (App Router) · React 19 · TypeScript · Drizzle ORM ·
+Stack: Next.js 16 (App Router) · React 19 · TypeScript · Drizzle ORM ·
 PostgreSQL (Neon, pooled) · Better Auth · Vitest.
+
+- **Live:** https://tenantdesk-eight.vercel.app
+- **Repository:** https://github.com/lkavila/TenantDesk
+- **Code commit:** `1c826e6`
+- **Evidence (commands + results):** [`EVIDENCE.md`](./EVIDENCE.md)
+- **AI collaboration log:** [`AI_LOG.md`](./AI_LOG.md)
 
 ---
 

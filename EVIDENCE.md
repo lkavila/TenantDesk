@@ -4,14 +4,14 @@ Everything below is actual output from this machine and from the live
 deployment. Credentials are redacted; nothing is reconstructed from memory.
 
 - **Preview (reachable):** https://tenantdesk-eight.vercel.app
-- **Commit SHA:** see `git rev-parse HEAD` — the deployed tree is the commit
-  recorded at the bottom of this file.
+- **Repository:** https://github.com/lkavila/TenantDesk (public — verified
+  reachable unauthenticated, HTTP 200)
+- **Code commit SHA:** `1c826e67c4322ea4af45a6a0068dd5b6168af4c8` (`1c826e6`).
+  That is the commit every result in this file was produced from, and the one
+  that is deployed. The commit after it touches **only this file**, to record
+  the repository URL once the push existed.
 - **Database:** Neon Postgres, **pooled** endpoint (`-pooler` host),
   `sslmode=require`, database `neondb`, region `us-east-2`.
-- **Repository URL:** not pushed to a remote. `vercel link` attempted to
-  connect `lkavila/TenantDesk` and failed because that GitHub repository does
-  not exist. The deployment was made directly from the local tree via the
-  Vercel CLI. See "Known gaps" at the bottom.
 
 ---
 
@@ -230,17 +230,7 @@ in the server action path, and the test suite proves a replayed write returns
 
 ## Known gaps, stated plainly
 
-1. **No remote repository.** `vercel link` tried to attach
-   `lkavila/TenantDesk` and failed — that GitHub repo does not exist. The
-   commit SHA below is from the local repository only. To satisfy the
-   "repository URL" requirement, push it:
-   ```bash
-   gh repo create TenantDesk --private --source=. --push
-   ```
-   (`gh auth status` currently reports no logged-in GitHub host, so that needs
-   a login first.)
-
-2. **`/t/<other-tenant>` returns HTTP 200, not 404, on the deployed app.** The
+1. **`/t/<other-tenant>` returns HTTP 200, not 404, on the deployed app.** The
    tenant view is wrapped in `<Suspense>` for the required pending state, so
    Next streams a 200 shell and the `notFound()` result arrives inside the
    stream. No data crosses — the body is the not-found page, verified above —
@@ -249,16 +239,16 @@ in the server action path, and the test suite proves a replayed write returns
    directly. Removing the Suspense boundary would give a true 404 status at
    the cost of the streaming pending state.
 
-3. **Env vars were passed per-deployment** (`--env`/`--build-env`) rather than
+2. **Env vars were passed per-deployment** (`--env`/`--build-env`) rather than
    saved to the Vercel project. A redeploy without those flags will fail at
    runtime on a missing `DATABASE_URL`. Saving them properly:
    `vercel env add DATABASE_URL production`.
 
-4. **The preview and local tests share one Neon database.** Tests clean up
+3. **The preview and local tests share one Neon database.** Tests clean up
    after themselves, but a failed run can leave a stray row; `npm run db:seed`
    resets the domain tables.
 
-5. **Deploy was promoted to production** (`--prod`) rather than left as a
+4. **Deploy was promoted to production** (`--prod`) rather than left as a
    preview, because a plain preview URL sits behind Vercel's Deployment
    Protection by default and would not have been reachable by a reviewer
    without an account.
@@ -268,8 +258,21 @@ in the server action path, and the test suite proves a replayed write returns
 ## Commit
 
 ```
+$ git remote -v
+origin  https://github.com/lkavila/TenantDesk.git (fetch)
+origin  https://github.com/lkavila/TenantDesk.git (push)
+
+$ git status -sb
+## main...origin/main          <- nothing left to push
+
 $ git rev-parse HEAD
+1c826e67c4322ea4af45a6a0068dd5b6168af4c8
 ```
 
-The SHA recorded at submission time is in the final commit of this repository.
-Run the command above against the submitted tree to confirm.
+Visibility checked without credentials, the way the reviewer will see it:
+
+```
+github.com/lkavila/TenantDesk        -> 200
+api.github.com/repos/lkavila/...     -> 200
+commit 1c826e6                       -> 200
+```

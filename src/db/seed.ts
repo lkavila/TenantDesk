@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "../env";
 import { eq } from "drizzle-orm";
 import { db, pool } from "./index";
 import { auditLogs, memberships, projects, tenants, user } from "./schema";

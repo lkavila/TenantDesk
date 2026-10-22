@@ -29,7 +29,13 @@ function parseName(raw: unknown): string {
 // 500. The tenant-aware unique index on (tenant_id, name) is the source of
 // truth for duplicates; pre-checking in JS would be a race.
 function mapDbError(e: unknown): never {
-  if ((e as { code?: string })?.code === "23505") {
+  // Drizzle wraps driver errors in DrizzleQueryError, so the Postgres
+  // SQLSTATE can be one level down in `cause`. Check both.
+  const code =
+    (e as { code?: string })?.code ??
+    (e as { cause?: { code?: string } })?.cause?.code;
+
+  if (code === "23505") {
     throw new ValidationError({
       name: "A project with that name already exists in this tenant.",
     });
